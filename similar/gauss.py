@@ -88,10 +88,10 @@ def get_gauss(path):
 
     x=np.arange(1,len(z)+1)
 
-    plt.plot(x,y,'r',label='2')
-    plt.plot(x,z,'b',label='1')
-
-    plt.show()
+    # plt.plot(x,y,'r',label='2')
+    # plt.plot(x,z,'b',label='1')
+    #
+    # plt.show()
     return x,z
 
 
