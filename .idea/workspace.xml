@@ -14,8 +14,8 @@
       <file leaf-file-name="gauss.py" pinned="false" current-in-tab="true">
         <entry file="file://$PROJECT_DIR$/similar/gauss.py">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="219">
-              <caret line="79" column="0" lean-forward="false" selection-start-line="79" selection-start-column="0" selection-end-line="79" selection-end-column="0" />
+            <state relative-caret-position="242">
+              <caret line="80" column="13" lean-forward="true" selection-start-line="80" selection-start-column="13" selection-end-line="80" selection-end-column="13" />
               <folding>
                 <element signature="e#1#16#0" expanded="true" />
               </folding>
@@ -536,8 +536,8 @@
     </entry>
     <entry file="file://$PROJECT_DIR$/similar/gauss.py">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="219">
-          <caret line="79" column="0" lean-forward="false" selection-start-line="79" selection-start-column="0" selection-end-line="79" selection-end-column="0" />
+        <state relative-caret-position="242">
+          <caret line="80" column="13" lean-forward="true" selection-start-line="80" selection-start-column="13" selection-end-line="80" selection-end-column="13" />
           <folding>
             <element signature="e#1#16#0" expanded="true" />
           </folding>
