@@ -3,6 +3,7 @@ from similar.gauss import get_gauss
 from sklearn import preprocessing
 import numpy as np
 import math
+import matplotlib.pyplot as plt
 
 
 class sim_calculater(object):
@@ -64,6 +65,17 @@ class sim_calculater(object):
         y = np.array(y_list)
 
         z = np.polyfit(x,y,exp)
+
+        yy = np.polyval(z, x)  # 根据多项式求函数值
+        # 进行曲线绘制
+        fig = plt.figure()
+        ax = fig.add_subplot(111)
+        x_new = np.linspace(0, len(y_list), 2000)
+        f_liner = np.polyval(z, x_new)
+        # ax.plot(x,y,color='m',linestyle='',marker='.')
+        ax.plot(x, y, 'b', label='1')
+        ax.plot(x_new, f_liner, label=u'拟合多项式曲线', color='g', linestyle='-', marker='')
+        plt.show()
         return z
 
     # 用皮尔逊系数咋样？？？？？
