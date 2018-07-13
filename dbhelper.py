@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-import  pymysql
+import pymysql
 
 class dbhelper:
     coon = 'test'
@@ -17,8 +17,14 @@ class dbhelper:
 
     def insert(self,sql):
         cur = self.coon.cursor()  # 建立游标
-        cur.execute(sql)    # 执行插入
-        self.coon.commit()
+        try:
+            # 执行sql语句
+            cur.execute(sql)
+            # 执行sql语句
+            self.coon.commit()
+        except:
+            # 发生错误时回滚
+            self.coon.rollback()
         # res = cur.fetchall()  # 获取结果
         # print(res)
         cur.close()  # 关闭游标
@@ -33,3 +39,14 @@ class dbhelper:
 
     def close(self):
         self.coon.close() # 关闭连接
+
+    def create(self,id):
+        # 使用 cursor() 方法创建一个游标对象 cursor
+        cursor = self.coon.cursor()
+        cursor.execute("DROP TABLE IF EXISTS sh" + id)
+        sql = 'CREATE TABLE sh'+ str(id) +' (  `id` int(20) NOT NULL AUTO_INCREMENT ,  `date` INT,  `value` double,  PRIMARY KEY (`id`)) ENGINE=InnoDB DEFAULT CHARSET=utf8'
+        cursor.execute(sql)
+
+        sql = 'ALTER TABLE sh'+ str(id) +'  ADD `contents` MEDIUMTEXT  ,  ADD `vector` MEDIUMTEXT  ,  ADD `increasing` INT  ;'
+        cursor.execute(sql)
+        cursor.close()
