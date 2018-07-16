@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 import jieba
 from dbhelper import dbhelper
+from stockdatainsert import get_indexes
 import sklearn
 
 from sklearn.feature_extraction.text import TfidfTransformer
@@ -8,13 +9,16 @@ from sklearn.feature_extraction.text import CountVectorizer
 from sklearn.decomposition import TruncatedSVD
 from sklearn.preprocessing import Normalizer
 from sklearn.pipeline import make_pipeline
+import xlrd
+
 
 
 class newsNLP:
-    news = (())
+    news = []
     all_doc_list = []
     tfidf = []
     lsa_result = []
+    gupiao = {}
     # 从停用词表中获取停用词
     def get_stopwords(self):
         f = open('stopword.txt',encoding='utf-8', errors='ignore')
@@ -76,13 +80,22 @@ class newsNLP:
         self.lsa_result = lsa.fit_transform(self.tfidf)
         print()
 
-    def get_contents(self):
+    def get_contents(self,id):
         coon = dbhelper()
         coon.open('stock')
-        sql = 'select id,contents from merge'
+        sql = 'select id,contents,increasing from sh' + str(id) + ' where increasing is not null'
         result = coon.select(sql)
-        print(result)
-        self.news = result
+
+        # 在这里要从所有新闻里去掉当前股票的名字 TODO
+        # print(result)
+        news_result = []
+
+        for each in result:
+            cur_news = [str(id) + str(each[0])]
+            cur_news.append(each[1].replace(self.gupiao[str(id)],''))
+            cur_news.append(each[2])
+            news_result.append(cur_news)
+        self.news.extend(news_result)
         coon.close()
 
     def save_lsa_vector(self):
@@ -95,15 +108,40 @@ class newsNLP:
             for item in each:
                 vector = vector + str(item) + " "
             sql = 'update merge set vector = "' + vector + '" where id = ' + str(i+1)
+            sql = 'insert into merge2(vector,increasing) VALUE ("' + vector + '","' + str(self.news[i][2]) + '");'
             result = coon.insert(sql)
             # print(result)
         coon.close()
 
+    def get_gupiao(self):
+        data = xlrd.open_workbook("C:/Users/wzy/Desktop/暑期实训/data/gupiao.xlsx")  # 打开excel
+        table = data.sheet_by_name("gupiao")  # 读sheet
+        nrows = table.nrows  # 获得行数
+        # result = []
+        # attrs = table.row_values(0)
 
+        # coon = dbhelper()
+        # coon.open('stock')
+        for i in range(1, nrows):  #
+            rows = table.row_values(i)  # 行的数据放在数组里
+            index = str(int(rows[0]))
+            name = str(rows[1])
+            self.gupiao[index] = name
+            # sql = 'insert into value(date,close) VALUE ("' + date + '","' + close + '");'
+            # coon.insert(sql)
+            # result.append(rows)
+        # print(result)
+        # coon.close()
 
 if __name__ == '__main__':
     news = newsNLP()
-    news.get_contents()
+    news.get_gupiao()
+    index_list = get_indexes('C:/Users/wzy/Desktop/暑期实训/data/上证A股/上证A股')
+    # news.get_contents(600004)
+    # news.get_contents(600000)
+    for each in index_list:
+        news.get_contents(each)
+        print(each)
     news.get_list_jieba()
     news.Tfidf()
     news.SVD(200)
