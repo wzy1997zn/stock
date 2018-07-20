@@ -8,6 +8,7 @@ import time
 import sys
 sys.path.append(r'D:\study\stokespider\ths')
 from dbhelper import dbhelper
+import datetime
 
 class conphantomjs:
     phantomjs_max = 1  ##同时开启phantomjs个数
@@ -64,7 +65,7 @@ class conphantomjs:
 
         coon = dbhelper()
         coon.open('stock')
-        sql = 'insert into stokenews(date,contents) VALUE ("' + date + '","' + contents + '");'
+        sql = 'insert into merge(date,contents) VALUE ("' + date + '","' + contents + '");'
         coon.insert(sql)
         coon.close()
 
@@ -138,6 +139,24 @@ class conphantomjs:
                 month = 1
                 year = year+1
         return url_list
+
+    def get_today_url_by_list(self):
+        url_patten = "http://news.10jqka.com.cn/cjzx_list/"
+        now = datetime.datetime.now().strftime('%Y%m%d')
+        url = url_patten + now + "/"
+        return [url]
+
+    def get_date(self,start,end):
+        # start = '2016-06-01'
+        # end = '2017-01-01'
+        datestart = datetime.datetime.strptime(start, '%Y-%m-%d')
+        dateend = datetime.datetime.strptime(end, '%Y-%m-%d')
+        datelist = []
+        while datestart < dateend:
+            datestart += datetime.timedelta(days=1)
+            date = datestart.strftime('%Y-%m-%d')
+            datelist.append(date)
+        return datelist
 
 if __name__ == "__main__":
     '''

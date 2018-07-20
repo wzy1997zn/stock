@@ -24,34 +24,40 @@ class Spider(object):
         self.stock_index_list = stock_index_list
 
     def get_news(self):
-        all_stock_date_content_list = []
+        all_stock_news_list = []
         for each_stock_id in self.stock_index_list:
-            date_to_content_dict = {}
+            cur_stock_title_link_list = []
             cur_stock_json_list = []
             base_url = self.news_base_url[0] + 'SH' + str(each_stock_id) + self.news_base_url[1]
             first_page_json,max_page = self.get_first_page(base_url)
             cur_stock_json_list.append(first_page_json)
 
-            for i in range(2,max_page+1):
-                url = base_url + str(i)
-                try:
-                    page_json = self.get_json(url)
-                    cur_stock_json_list.append(page_json)
-                except:
-                    pass
+            # for i in range(2,max_page+1):
+            #     url = base_url + str(i)
+            #     try:
+            #         page_json = self.get_json(url)
+            #         cur_stock_json_list.append(page_json)
+            #     except:
+            #         pass
 
             for each_page in cur_stock_json_list:
                 news_list = each_page['list']
                 for each_news in news_list:
-                    text = each_news['text']
-                    timeBefore = each_news['timeBefore']
-                    content,time = data_preprocessing(text,timeBefore)
-                    ex = date_to_content_dict.get(time, '')
-                    date_to_content_dict[time] = ex + content
+                    # text = each_news['text']
+                    # timeBefore = each_news['timeBefore']
+                    # content,time = data_preprocessing(text,timeBefore)
+                    # ex = date_to_content_dict.get(time, '')
+                    # date_to_content_dict[time] = ex + content
                     # print(content, time)
-            all_stock_date_content_list.append(date_to_content_dict)
-            save_to_db(self.coon,date_to_content_dict,each_stock_id)
-        return all_stock_date_content_list
+
+                    title = each_news['title']
+                    link = each_news['quote_cards'][0]['target_url']
+                    title_link_list = [title,link]
+                    cur_stock_title_link_list.append(title_link_list)
+
+            all_stock_news_list.append(cur_stock_title_link_list)
+            # save_to_db(self.coon,cur_stock_title_link_list,each_stock_id)
+        return all_stock_news_list
 
     def get_first_page(self,url):
         url = url + '1'
@@ -142,7 +148,8 @@ def main():
 if __name__ == '__main__':
     # save_to_db(dbhelper(),{},1)
 
-    indexes = get_indexes('C:/Users/wzy/Desktop/暑期实训/data/上证A股/上证A股')
-    spider = Spider(indexes[10:])
-    spider.get_news()
+    # indexes = get_indexes('C:/Users/wzy/Desktop/暑期实训/data/上证A股/上证A股')
+    spider = Spider(['000001'])
+    lists = spider.get_news()
+    print(lists)
     # data_preprocessing('中国网财经7月12日讯 浦发银行12日在京正式推出业内首个API Bank无界开放银行，这是该行建设一流数字生态银行的一项重大工程。浦发银行API Bank无界开放银行将通过API架构驱动，将场景金融融入互联网生态，围绕客户需求和体... <a href="http://finance.sina.com.cn/roll/2018-07-12/doc-ihfefkqr1162079.shtml" title="http://finance.sina.com.cn/roll/2018-07-12/doc-ihfefkqr1162079.shtml" target="_blank" class="status-link">网页链接</a>','今天 08:31')

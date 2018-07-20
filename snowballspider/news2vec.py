@@ -52,13 +52,7 @@ class newsNLP:
 
     # 读取已经分词好的文档，进行TF-IDF计算
     def Tfidf(self):
-        # corpus = []
-        # for ff in filelist:
-        #     fname = path + ff
-        #     f = open(fname + "-seg.txt", 'r+')
-        #     content = f.read()
-        #     f.close()
-        #     corpus.append(content)
+
         all_doc = []
         for each_doc in self.all_doc_list:
             doc_words_splited_by_blank = ""
@@ -117,21 +111,13 @@ class newsNLP:
         data = xlrd.open_workbook("C:/Users/wzy/Desktop/暑期实训/data/gupiao.xlsx")  # 打开excel
         table = data.sheet_by_name("gupiao")  # 读sheet
         nrows = table.nrows  # 获得行数
-        # result = []
-        # attrs = table.row_values(0)
 
-        # coon = dbhelper()
-        # coon.open('stock')
         for i in range(1, nrows):  #
             rows = table.row_values(i)  # 行的数据放在数组里
             index = str(int(rows[0]))
             name = str(rows[1])
             self.gupiao[index] = name
-            # sql = 'insert into value(date,close) VALUE ("' + date + '","' + close + '");'
-            # coon.insert(sql)
-            # result.append(rows)
-        # print(result)
-        # coon.close()
+
 
 if __name__ == '__main__':
     news = newsNLP()

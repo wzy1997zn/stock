@@ -14,7 +14,12 @@ from my_cnn_model import MyCNNConfig, MyCNN
 from data.cnews_loader import read_vocab, read_category, batch_iter, process_file, build_vocab
 from dbhelper import dbhelper
 from tensorflow.python import debug as tf_debug
-
+import pandas as pd
+import datetime
+from newsspider import conphantomjs
+import threading
+import tushare
+from news2vec import newsNLP
 
 base_dir = 'data/cnews'
 train_dir = os.path.join(base_dir, 'cnews.train.txt')
@@ -80,7 +85,49 @@ def getData(type):
     print()
     return x,y
 
+def getData2(type):
+    # 从数据库读入
+    coon = dbhelper()
+    coon.open('stock')
+    sql = 'select vector,increasing from merge2 order by id asc'
+    if type == 'train':
+        sql = sql + ' limit 20000,70000'
+    elif type == 'test':
+        # sql = sql + ' limit 1500,20000'
+        sql = 'select vector,increasing from merge order by date asc'
+    elif type == 'predict':
+        sql = 'select vector,increasing from merge order by date desc limit 0 , 5'
 
+    else:
+        sql = sql + ' limit 0,20000'
+    data = coon.select(sql)
+    coon.close()
+    x = []
+    y = []
+    if type == 'predict':
+        data = list(data)
+        data.reverse()
+        matrix = []
+        for each in data:
+            matrix.append(list(np.float32(each[0].split())))
+        x.append(matrix)
+        y = [[0,0]]
+        return x,y
+
+    for i in range(len(data)-5):
+        matrix = []
+        for j in range(5):
+            matrix.append([np.float32(x) for x in data[i+5-j][0].split()])
+        # x.append([[np.float32(x) for x in data[i][0].split()]] * 5)
+        x.append(matrix)
+
+
+        ytemp = [0,0]
+        ytemp[data[i][1]] = 1  # 在此划分分类层数
+        y.append(ytemp)
+
+    print()
+    return x,y
 
 
 def train():
@@ -107,8 +154,8 @@ def train():
     # x_val, y_val = process_file(val_dir, word_to_id, cat_to_id, config.seq_length)
 
     # 使用自己的训练集
-    x_train,y_train = getData('train')
-    x_val,y_val = getData('val')
+    x_train,y_train = getData2('train')
+    x_val,y_val = getData2('val')
 
     time_dif = get_time_dif(start_time)
     print("Time usage:", time_dif)
@@ -124,7 +171,7 @@ def train():
     total_batch = 0  # 总批次
     best_acc_val = 0.0  # 最佳验证集准确率
     last_improved = 0  # 记录上一次提升批次
-    require_improvement = 1000  # 如果超过1000轮未提升，提前结束训练
+    require_improvement = 3000  # 如果超过1000轮未提升，提前结束训练
 
     flag = False
     for epoch in range(config.num_epochs):
@@ -169,10 +216,177 @@ def train():
         if flag:  # 同上
             break
 
+def test():
+    print("Loading test data...")
+    start_time = time.time()
+    x_test, y_test = getData2('test')
+
+    session = tf.Session()
+    session.run(tf.global_variables_initializer())
+    saver = tf.train.Saver()
+    saver.restore(sess=session, save_path=save_path)  # 读取保存的模型
+
+    print('Testing...')
+    loss_test, acc_test = evaluate(session, x_test, y_test)
+    msg = 'Test Loss: {0:>6.2}, Test Acc: {1:>7.2%}'
+    print(msg.format(loss_test, acc_test))
+
+    batch_size = 128
+    data_len = len(x_test)
+    num_batch = int((data_len - 1) / batch_size) + 1
+
+    y_test_cls = np.argmax(y_test, 1)
+    y_pred_cls = np.zeros(shape=len(x_test), dtype=np.int32)  # 保存预测结果
+    for i in range(num_batch):  # 逐批次处理
+        start_id = i * batch_size
+        end_id = min((i + 1) * batch_size, data_len)
+        feed_dict = {
+            model.input_x: x_test[start_id:end_id],
+            model.keep_prob: 1.0
+        }
+        y_pred_cls[start_id:end_id] = session.run(model.y_pred_cls, feed_dict=feed_dict)
+
+    # 输出
+    coon = dbhelper()
+    coon.open('stock')
+    sql = 'select date from merge order by date asc'
+    date = coon.select(sql)[-1-len(y_pred_cls):-1]
+    dataframe = pd.DataFrame({'date':date,'pred': y_pred_cls.tolist()})
+    coon.close()
+
+    dataframe.to_csv("pred.csv", index=False, sep=',')
+
+
+    # 评估
+    print("Precision, Recall and F1-Score...")
+    categories = ['涨','跌']
+    print(metrics.classification_report(y_test_cls, y_pred_cls, target_names=categories))
+
+    # 混淆矩阵
+    print("Confusion Matrix...")
+    cm = metrics.confusion_matrix(y_test_cls, y_pred_cls)
+    print(cm)
+
+    time_dif = get_time_dif(start_time)
+    print("Time usage:", time_dif)
+
+
+def predict():
+    print("Loading test data...")
+    start_time = time.time()
+    x_test, y_test = getData2('predict')
+
+    session = tf.Session()
+    session.run(tf.global_variables_initializer())
+    saver = tf.train.Saver()
+    saver.restore(sess=session, save_path=save_path)  # 读取保存的模型
+
+    print('Testing...')
+    # loss_test, acc_test = evaluate(session, x_test, y_test)
+    msg = 'Test Loss: {0:>6.2}, Test Acc: {1:>7.2%}'
+    # print(msg.format(loss_test, acc_test))
+
+    batch_size = 1
+    data_len = len(x_test)
+    num_batch = int((data_len - 1) / batch_size) + 1
+
+    # y_test_cls = np.argmax(y_test, 1)
+    y_pred_cls = np.zeros(shape=len(x_test), dtype=np.int32)  # 保存预测结果
+    for i in range(num_batch):  # 逐批次处理
+        start_id = i * batch_size
+        end_id = min((i + 1) * batch_size, data_len)
+        feed_dict = {
+            model.input_x: x_test[start_id:end_id],
+            model.keep_prob: 1.0
+        }
+        y_pred_cls[start_id:end_id] = session.run(model.y_pred_cls, feed_dict=feed_dict)
+
+    # 输出
+    coon = dbhelper()
+    coon.open('stock')
+    sql = 'select date from merge order by date asc'
+    date = coon.select(sql)[-len(y_pred_cls):]
+    dataframe = pd.DataFrame({'date':date,'pred': y_pred_cls.tolist()})
+    coon.close()
+
+    dataframe.to_csv("pred_tomorrow.csv", index=False, sep=',')
+
+
+    # # 评估
+    # print("Precision, Recall and F1-Score...")
+    # categories = ['涨','跌']
+    # print(metrics.classification_report(y_test_cls, y_pred_cls, target_names=categories))
+    #
+    # # 混淆矩阵
+    # print("Confusion Matrix...")
+    # cm = metrics.confusion_matrix(y_test_cls, y_pred_cls)
+    # print(cm)
+    #
+    # time_dif = get_time_dif(start_time)
+    # print("Time usage:", time_dif)
+
+
+def predict_tomorrow():
+    get_contents()
+    get_value()
+    get_vector()
+    predict()
+
+def get_vector():
+    news = newsNLP()
+    news.get_contents()
+    news.get_list_jieba()
+    news.Tfidf()
+    news.SVD(200)
+    news.save_lsa_vector()
+
+def get_value():
+    df = tushare.get_index()
+    sz_value = df.iat[0,5]
+    preclose = df.iat[0,4]
+    increasing = 0
+    if sz_value > preclose:
+        increasing = 1
+    today_date = datetime.datetime.now().strftime('%Y%m%d')
+    coon = dbhelper()
+    coon.open("stock")
+    sql2 = 'select date from merge order by date desc limit 1,1'
+    last_date = coon.select(sql2)
+    sql1 = 'update merge set increasing = ' + str(increasing) + ' where date = ' + str(last_date[0][0])
+    coon.insert(sql1)
+    sql = 'update merge set value = ' + str(sz_value) + ' where date = ' + str(today_date)
+    coon.insert(sql)
+    coon.close()
+
+def get_contents():
+    cur = conphantomjs()
+    conphantomjs.phantomjs_max = 1
+    cur.open_phantomjs()
+    print("phantomjs num is ", cur.q_phantomjs.qsize())
+
+    # url_list = ["http://www.baidu.com"] * 50
+
+    url_list = cur.get_today_url_by_list()
+
+    cur.getbody(url_list[0])
+
+
+def get_date(start,end):
+    # start = '2016-06-01'
+    # end = '2017-01-01'
+    datestart = datetime.datetime.strptime(start, '%Y-%m-%d')
+    dateend = datetime.datetime.strptime(end, '%Y-%m-%d')
+    datelist = []
+    while datestart < dateend:
+        datestart += datetime.timedelta(days=1)
+        date = datestart.strftime('%Y-%m-%d')
+        datelist.append(date)
+    return datelist
 
 if __name__ == '__main__':
     config = MyCNNConfig()
     model = MyCNN(config)
 
-    # getData('train')
-    train()
+    # train()
+    test()
+    # predict_tomorrow()
